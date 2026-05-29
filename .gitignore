@@ -1,0 +1,15 @@
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Editor Files
+*.swp
+
+# Backup Files
+*.bak
+
+# Claude Code worktrees (temporary)
+.claude/worktrees/
+
+# Make target trackers
+.make-timestamp.*
