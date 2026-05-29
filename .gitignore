@@ -4,6 +4,7 @@ Thumbs.db
 
 # Editor Files
 *.swp
+*.sublime-workspace
 
 # Backup Files
 *.bak
@@ -13,3 +14,6 @@ Thumbs.db
 
 # Make target trackers
 .make-timestamp.*
+
+# Build artifacts (regenerable STL exports)
+build/
