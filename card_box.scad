@@ -114,10 +114,7 @@ module sections() {
 
     corner = FRONT + BOTTOM;
 
-    mult = $section_height_multiplier;
-
-    // we can reuse the strategy here to calculate the size of the divider :)
-    divider = $card_orientation($card_type, $section_divider, mult) + [$wall, 0, 0];
+    divider = make_divider();
 
     for (pos = section_wall_positions($cards)){
         position(corner)
@@ -133,8 +130,44 @@ function __sections_vars() = __card_box_vars([
     ["$section_height_multiplier", $section_height_multiplier],
 ]);
 
+// we can reuse the strategy here to calculate the size of the divider :)
+function make_divider() = [$wall, 0, 0] +
+    $card_orientation($card_type, $section_divider, $section_height_multiplier);
+
 // calculate each wall's starting position potion.
 // Include $section_divider so each subsequent wall will factor in previous walls
 function section_wall_positions(cards) = list_head(
     cumsum([for (c = cards) STACKED(c) + $section_divider])
 );
+
+
+module angled_notch() {
+    // this assertion works for angled notch as well
+    __assert_dynamic_vars( __sections_vars() );
+
+    parent = $parent_size;
+
+
+    // box_length = parent.y;
+    // cardwise = parent.x * 0.66;
+    // notch = parent.z - make_divider().z;
+
+    cut = [
+        // length of the card box
+        parent.y + (2 * $buffer),
+
+        // how far inset is the notch
+        (parent.x * 0.55) + (2 * $buffer),
+
+        // how deep does the notch go
+        parent.z - make_divider().z + 0.5,
+    ];
+
+
+    // Seat the wedge's right-angle edge on the box's front-top edge, flipped
+    // to hang down the front at full height and ramp up to the back. The
+    // $buffer nudges keep the cut faces clear of the shell.
+    // From the
+    position(FRONT + TOP + LEFT) up($buffer) fwd($buffer) left($buffer)
+        tag("remove") wedge(cut, anchor=LEFT + BOTTOM + FRONT, spin=90, orient=DOWN);
+}

@@ -1,7 +1,7 @@
 include <BOSL2/std.scad>
 
 // pad by $buffer
-// function buffer(x) = x + $buffer;
+function buffer(x) = x + $buffer;
 
 function addGap(size) = size + $gap;
 

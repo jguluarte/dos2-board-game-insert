@@ -39,6 +39,7 @@ module sectioned_box(deck) {
 
     card_box(__sections(deck), STANDARD, TALL, SECTIONED){
         sections();
+        angled_notch();
         children();
     };
 }
@@ -57,7 +58,7 @@ module backRow(num, decks=[]) {
 
 gamebox() {
     // First pass placing standard boxes in
-    locations_longwise();
+    // locations_longwise();
 
     backRow(0, [ITEMS]);
     backRow(1, [SKILLS, TUTORIAL]);
@@ -67,5 +68,5 @@ gamebox() {
 }
 
 
-echo("interior().y - $gap - wallify(short_side(TAROT)) - __depth(ITEMS) - $gap - $gap == ");
-echo(interior().y - $gap - wallify(short_side(TAROT)) - __depth(ITEMS) - $gap - $gap);
+// echo("interior().y - $gap - wallify(short_side(TAROT)) - __depth(ITEMS) - $gap - $gap == ");
+// echo(interior().y - $gap - wallify(short_side(TAROT)) - __depth(ITEMS) - $gap - $gap);
