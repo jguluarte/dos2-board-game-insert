@@ -58,7 +58,7 @@ module backRow(num, decks=[]) {
 
 gamebox() {
     // First pass placing standard boxes in
-    // locations_longwise();
+    locations_longwise();
 
     backRow(0, [ITEMS]);
     backRow(1, [SKILLS, TUTORIAL]);

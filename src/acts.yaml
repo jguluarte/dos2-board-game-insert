@@ -1,0 +1,26 @@
+# The location-card acts, in front-wall order (the last entry overflows to its
+# own spot). Each act renders in its color so the groups read in the assembly.
+acts:
+  tutorial:
+    color:       gold
+    card_stacks: [14]
+
+  act_1:
+    color:       firebrick
+    card_stacks: [56, 67, 61]
+
+  act_2:
+    color:       steelblue
+    card_stacks: [63, 51, 51]
+
+  act_3:
+    color:       seagreen
+    card_stacks: [41, 46, 36]
+
+  haunted_keep:
+    color:       mediumpurple
+    card_stacks: [45]
+
+  nemesis:
+    color:       maroon
+    card_stacks: [32]

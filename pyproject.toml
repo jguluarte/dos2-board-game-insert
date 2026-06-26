@@ -1,0 +1,23 @@
+[project]
+name = "dos2-insert"
+version = "0.1.0"
+description = "Divinity: Original Sin board-game insert — using build123d"
+
+
+requires-python = ">=3.12"
+dependencies = [
+    "build123d==0.11.0",
+    "partomatic",
+    "watchfiles",
+    "pyyaml",
+    "ocp-vscode",
+]
+
+[tool.uv]
+package = false
+
+[tool.pyright]
+typeCheckingMode = "basic"
+reportReturnType = "none"
+reportArgumentType = "none"
+reportIncompatibleVariableOverride = "none"
