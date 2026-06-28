@@ -1,3 +1,5 @@
+from build123d import fillet, Color
+
 from functools import wraps
 
 WALL = 2.4
@@ -10,8 +12,31 @@ def stack_thickness(cards):
 
 def prime(generator):
     @wraps(generator)
-    def start(*args, **kwargs):
+    def wrapped(*args, **kwargs):
         gen = generator(*args, **kwargs)
         next(gen)
         return gen
-    return start
+    return wrapped
+
+
+def compiled(func):
+    @wraps(func)
+    def wrapped(self, *args, **kwargs):
+        self.compile()
+        return func(self, *args, **kwargs)
+    return wrapped
+
+def max_fillet(objs, part):
+    return fillet(objs, radius=part.max_fillet(objs, max_iterations=20))
+
+
+def cshift(color, tint=0.3) -> Color:
+    r, g, b, _ = tuple(color)
+
+    adjust = lambda x: x + (1 - x) * tint
+
+    return Color(
+        adjust(r),
+        adjust(g),
+        adjust(b),
+    )
