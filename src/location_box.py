@@ -58,6 +58,7 @@ class LocationBox(Partomatic):
     lid_head: float = 5
     lid_fit: float = 0.1
     seam_skin: float = 0.2      # plastic between the two magnets at the closed seam
+    corner_round: float = 2.0   # outer vertical corners; well/groove/seam stay sharp
 
     @property
     def lid_inset(self):
@@ -68,8 +69,10 @@ class LocationBox(Partomatic):
         center_x, for cutting an aligned pocket in both the box and the lid."""
         m = self.config.magnet
         plane = Plane(
-                origin=(center_x, self.config.depth/2, self.config.height - self.lid_inset),
-                z_dir=(1, 0, 0))
+            origin=(center_x, self.config.depth/2, self.config.height - self.lid_inset),
+            z_dir=(1, 0, 0)
+        )
+
         return plane * Cylinder(m.diameter/2, m.thickness)
 
     def compile(self):
@@ -111,6 +114,21 @@ class LocationBox(Partomatic):
             # magnet pocket in the back wall, just behind the closed seam
             add(box_magnet, mode=Mode.SUBTRACT)
 
+            ####################
+            # Polish the edges
+            verticals = edges().filter_by(Axis.Z).group_by(Axis.X)
+
+            top_bot = edges().filter_by(Plane.XY).group_by(Axis.Z)
+            sides   = top_bot[-1].filter_by(Axis.X).group_by(Axis.Y)
+            ends    = top_bot[-1].filter_by(Axis.Y).group_by(Axis.X)
+
+            # outer four edges and the bottom
+            box_edges = verticals[0] + verticals[-1] + top_bot[0]
+
+            # the top outer 3 edges
+            box_edges += sides[0] + sides[-1] + ends[0]
+            fillet(box_edges, self.corner_round)
+
         with BuildPart() as lid:
             extrude(offset(lid_key.sketch, -self.lid_fit), amount=-self.config.lid_length)
             extrude(faces().sort_by(Axis.Z)[-1], amount=self.lid_fit)
@@ -118,6 +136,18 @@ class LocationBox(Partomatic):
 
             # matching magnet pocket in the lid tip, facing the box magnet
             add(lid_magnet, mode=Mode.SUBTRACT)
+
+            ####################
+            # Polish the edges
+            verticals = edges().filter_by(Axis.Z).group_by(Axis.X)[-1]
+
+            top   = edges().filter_by(Plane.XY).group_by(Axis.Z)[-1]
+            sides = top.filter_by(Axis.X).group_by(Axis.Y)
+            ends  = top.filter_by(Axis.Y).group_by(Axis.X)
+
+            # we want the lid's edge to sit flush with the box itself
+            lid_edges = verticals + sides[0] + sides[-1] + ends[-1]
+            fillet(lid_edges, self.corner_round)
 
         # Slide joint: the lid travels along the lid_plane normal, seated at 0
         LinearJoint(
