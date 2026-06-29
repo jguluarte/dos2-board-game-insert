@@ -6,14 +6,14 @@ from ocp_vscode import show, Animation
 from build123d import *
 from partomatic import AutomatablePart, PartomaticConfig
 
-from parts import Partomatic
-from utils import stack_thickness, WALL, compiled, cshift
+from parts import Partomatic, Card, CardBoxConfig
+from utils import cshift
 
 FIT = 0.1
 log = logging.getLogger(__name__)
 
 
-class Tarot(PartomaticConfig):
+class Tarot(Card):
     width: int = 75
     height: int = 125
 
@@ -21,12 +21,9 @@ class Magnet(PartomaticConfig):
     diameter: float = 3
     thickness: float = 1
 
-class LocationBoxConfig(PartomaticConfig):
-    wall: float = WALL
-    stl_folder: str = "build"
-    card: Tarot = field(default_factory=Tarot)
+class LocationBoxConfig(CardBoxConfig):
+    card: Card = field(default_factory=Tarot)
     magnet: Magnet = field(default_factory=Magnet)
-
 
     ##################################
     # Stubbed with `tutorial` values
@@ -36,25 +33,8 @@ class LocationBoxConfig(PartomaticConfig):
     ##################################
 
     @property
-    def depth(self):
-        return self.stack + (self.wall * 2)
-
-    @property
-    def stack(self):
-        return stack_thickness(self.card_count)
-
-    @property
     def lid_length(self):
         return self.face - self.wall
-
-    @property
-    def face(self):
-        return self.card.width + (self.wall * 2)
-
-    # This is where I'll want to add height for the lid
-    @property
-    def height(self):
-        return self.card.height + self.wall
 
 class LocationBox(Partomatic):
     config: LocationBoxConfig = LocationBoxConfig()
@@ -68,7 +48,11 @@ class LocationBox(Partomatic):
 
     @property
     def coords(self):
-        return [self.config.face, self.config.depth, self.config.height]
+        return [
+            self.config.face,
+            self.config.depth,
+            self.config.height + self.lid_head
+        ]
 
     def cut_magnet(self, face, offset):
         diameter, depth = map(lambda x: x + FIT, [
