@@ -8,6 +8,8 @@ from utils import stack_thickness, WALL, compiled, max_fillet, cshift
 
 log = logging.getLogger(__name__)
 
+FIT = 0.1
+
 class Tarot(PartomaticConfig):
     width: int = 75
     height: int = 125
@@ -55,36 +57,31 @@ class LocationBoxConfig(PartomaticConfig):
 class LocationBox(Partomatic):
     config: LocationBoxConfig = LocationBoxConfig()
 
+    fillet: float = 2.0
     lid_head: float = 5
-    lid_fit: float = 0.1
-    seam_skin: float = 0.2      # plastic between the two magnets at the closed seam
-    corner_round: float = 2.0   # outer vertical corners; well/groove/seam stay sharp
 
     @property
     def lid_inset(self):
-        return self.lid_head/2
+        return self.lid_head / 2
 
-    def _magnet_void(self, center_x):
-        """A magnet-sized cylinder (axis along the slide) centered in the key at
-        center_x, for cutting an aligned pocket in both the box and the lid."""
+    def magnet(self, center_x):
         m = self.config.magnet
-        plane = Plane(
-            origin=(center_x, self.config.depth/2, self.config.height - self.lid_inset),
-            z_dir=(1, 0, 0)
+        pos = Pos(
+            center_x,
+            self.config.depth / 2,
+            self.config.height - self.lid_inset
         )
-
-        return plane * Cylinder(m.diameter/2, m.thickness)
+        return pos * Box(m.thickness + FIT, m.diameter + FIT, m.diameter + FIT)
 
     def compile(self):
         self.parts.clear()
 
         centered = (Align.MAX, Align.CENTER)
 
-        # magnet pockets aligned at the closed seam (built outside any builder
-        # context so the Cylinder doesn't auto-add itself)
+        # magnets
         mag = self.config.magnet
-        box_magnet = self._magnet_void(self.config.wall - self.seam_skin - mag.thickness/2)
-        lid_magnet = self._magnet_void(self.config.wall + self.seam_skin + mag.thickness/2)
+        box_magnet = self.magnet(self.config.wall - 0.25 - mag.thickness/2)
+        lid_magnet = self.magnet(self.config.wall + 0.5 + mag.thickness/2)
 
         with BuildPart() as box:
             # Make the box & hollow it out
@@ -127,11 +124,11 @@ class LocationBox(Partomatic):
 
             # the top outer 3 edges
             box_edges += sides[0] + sides[-1] + ends[0]
-            fillet(box_edges, self.corner_round)
+            fillet(box_edges, self.fillet)
 
         with BuildPart() as lid:
-            extrude(offset(lid_key.sketch, -self.lid_fit), amount=-self.config.lid_length)
-            extrude(faces().sort_by(Axis.Z)[-1], amount=self.lid_fit)
+            extrude(offset(lid_key.sketch, -FIT), amount=-self.config.lid_length)
+            extrude(faces().sort_by(Axis.Z)[-1], amount=FIT)
             extrude(head.sketch, amount=-self.config.wall)
 
             # matching magnet pocket in the lid tip, facing the box magnet
@@ -147,7 +144,7 @@ class LocationBox(Partomatic):
 
             # we want the lid's edge to sit flush with the box itself
             lid_edges = verticals + sides[0] + sides[-1] + ends[-1]
-            fillet(lid_edges, self.corner_round)
+            fillet(lid_edges, self.fillet)
 
         # Slide joint: the lid travels along the lid_plane normal, seated at 0
         LinearJoint(
@@ -168,14 +165,16 @@ class LocationBox(Partomatic):
         self.parts.append(
             AutomatablePart(
                 box.part, f"{self.config.name} box.stl",
-                display_location=Location((0, 0, 0))
+                display_location=Location((0, 0, 0)),
+                stl_folder=self.config.stl_folder,
             )
         )
 
         self.parts.append(
             AutomatablePart(
                 lid.part, f"{self.config.name} lid.stl",
-                display_location=Location((0, 0, 0))
+                display_location=Location((0, 0, 0)),
+                stl_folder=self.config.stl_folder,
             )
         )
 
@@ -199,10 +198,12 @@ if __name__ == "__main__":
     from ocp_vscode import show, Animation
 
     box = LocationBox()
+    box.partomate()
+
     asm = box.assembly()
     show(asm, render_joints=True)
 
-    slide = box.config.lid_length
+    slide = box.config.lid_length + 10
     anim = Animation()
     anim.add_track(f"/{box.config.name}/lid", "tx", times=[0, 1, 2], values=[0, slide, 0])
     anim.animate(speed=0.9)
