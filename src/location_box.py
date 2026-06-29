@@ -4,13 +4,14 @@ from dataclasses import field
 from ocp_vscode import show, Animation
 
 from build123d import *
-from partomatic import AutomatablePart, Partomatic, PartomaticConfig
+from partomatic import AutomatablePart, PartomaticConfig
 
+from parts import Partomatic
 from utils import stack_thickness, WALL, compiled, cshift
 
+FIT = 0.1
 log = logging.getLogger(__name__)
 
-FIT = 0.1
 
 class Tarot(PartomaticConfig):
     width: int = 75
@@ -55,7 +56,6 @@ class LocationBoxConfig(PartomaticConfig):
     def height(self):
         return self.card.height + self.wall
 
-
 class LocationBox(Partomatic):
     config: LocationBoxConfig = LocationBoxConfig()
 
@@ -65,6 +65,10 @@ class LocationBox(Partomatic):
     @property
     def lid_inset(self):
         return self.lid_head / 2
+
+    @property
+    def coords(self):
+        return [self.config.face, self.config.depth, self.config.height]
 
     def cut_magnet(self, face, offset):
         diameter, depth = map(lambda x: x + FIT, [
@@ -189,17 +193,6 @@ class LocationBox(Partomatic):
                 display_location=Location((0, 0, 0)),
                 stl_folder=self.config.stl_folder,
             )
-        )
-
-    @property
-    def coords(self):
-        return [self.config.face, self.config.depth, self.config.height]
-
-    @compiled
-    def assembly(self):
-        return Compound(
-            label=self.config.name,
-            children=[p.part for p in self.parts]
         )
 
 if __name__ == "__main__":

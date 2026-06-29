@@ -1,9 +1,3 @@
-"""Lay the location/act boxes inside the game-box interior and show them in the viewer.
-
-Each act is a row of location boxes in its own color. They flow left-to-right
-along the front wall; the box that no longer fits is routed to the overflow
-corner. Run with `python watch.py src/gamebox.py` (or directly).
-"""
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -14,10 +8,12 @@ from build123d import Align, Box, Compound, Pos, Rotation, Vector
 from location_box import LocationBox
 from utils import prime
 
+
 log = logging.getLogger(__name__)
 
 GAP = 1.0
 BUFFER = 0.1
+
 
 @dataclass
 class Act:
@@ -32,9 +28,7 @@ def load_locations() -> list[LocationBox]:
 
 def load_acts(path="src/acts.yaml") -> list[Act]:
     doc = yaml.safe_load(Path(path).read_text())
-    assert doc and doc["acts"]
     return [Act(name=name, **body) for name, body in doc["acts"].items()]
-
 
 def place_at(obj, point):
     return Pos(point - obj.bounding_box().min) * obj
@@ -45,10 +39,9 @@ class GameBox:
     depth: int = 303
     height: int = 175
 
-    _location_inset: float = GAP
-
     def __init__(self):
         self.locations = []
+        self._location_offset = GAP
 
         self.loc_cursor = self.gen_location_corner()
 
@@ -64,8 +57,8 @@ class GameBox:
 
         # things that fit in the main row
         while len(self.locations) < 11:
-            corner = Vector(self._location_inset, GAP, BUFFER)
-            self._location_inset += box.X + GAP
+            corner = Vector(self._location_offset, GAP, BUFFER)
+            self._location_offset += box.X + GAP
             box = (yield corner).bounding_box().size
 
         # the final straggler
