@@ -1,10 +1,12 @@
 import logging
 from dataclasses import field
 
+from ocp_vscode import show, Animation
+
 from build123d import *
 from partomatic import AutomatablePart, Partomatic, PartomaticConfig
 
-from utils import stack_thickness, WALL, compiled, max_fillet, cshift
+from utils import stack_thickness, WALL, compiled, cshift
 
 log = logging.getLogger(__name__)
 
@@ -64,29 +66,32 @@ class LocationBox(Partomatic):
     def lid_inset(self):
         return self.lid_head / 2
 
-    def magnet(self, center_x):
-        m = self.config.magnet
-        pos = Pos(
-            center_x,
-            self.config.depth / 2,
-            self.config.height - self.lid_inset
-        )
-        return pos * Box(m.thickness + FIT, m.diameter + FIT, m.diameter + FIT)
+    def cut_magnet(self, face, offset):
+        diameter, depth = map(lambda x: x + FIT, [
+            self.config.magnet.diameter,
+            self.config.magnet.thickness,
+        ])
+
+        top = face.edges().sort_by(Axis.Z)[-1].center()
+        magnet_center = top - Vector(0, 0, self.lid_inset)
+        plane = Plane(face).shift_origin(magnet_center).offset(offset)
+
+        with BuildSketch(plane) as magnet:
+            Rectangle(diameter, diameter)
+
+        extrude(magnet.sketch, amount=-depth, mode=Mode.SUBTRACT)
 
     def compile(self):
         self.parts.clear()
 
         centered = (Align.MAX, Align.CENTER)
 
-        # magnets
-        mag = self.config.magnet
-        box_magnet = self.magnet(self.config.wall - 0.25 - mag.thickness/2)
-        lid_magnet = self.magnet(self.config.wall + 0.5 + mag.thickness/2)
-
         with BuildPart() as box:
             # Make the box & hollow it out
             Box(*self.coords, align=(Align.MIN, Align.MIN, Align.MIN))
-            offset(amount=-self.config.wall, openings=faces().sort_by(Axis.Z)[-1])
+            offset(
+                amount=-self.config.wall,
+                openings=faces().sort_by(Axis.Z)[-1] )
 
             # select the face to cut the lid out from, origin at its top center
             face = faces().filter_by(Plane.YZ).sort_by(Axis.X)[-1]
@@ -95,6 +100,7 @@ class LocationBox(Partomatic):
             # remove the end of the key
             with BuildSketch(lid_plane) as head:
                 Rectangle(-self.lid_head, self.config.depth, align=centered)
+
             extrude(amount=-self.config.wall, mode=Mode.SUBTRACT)
 
             #  now we need to cut the small keyhole groove (the slide joint)
@@ -108,8 +114,9 @@ class LocationBox(Partomatic):
                     )
             extrude(amount=-self.config.lid_length, mode=Mode.SUBTRACT)
 
-            # magnet pocket in the back wall, just behind the closed seam
-            add(box_magnet, mode=Mode.SUBTRACT)
+            # magnet pocket cut into the back wall, a skin shy of the well
+            back = faces().filter_by(Plane.YZ).sort_by(Axis.X)[1]
+            self.cut_magnet(back, -0.2)
 
             ####################
             # Polish the edges
@@ -126,13 +133,22 @@ class LocationBox(Partomatic):
             box_edges += sides[0] + sides[-1] + ends[0]
             fillet(box_edges, self.fillet)
 
+            LinearJoint(
+                "lock",
+                axis=Axis(lid_plane.origin, lid_plane.z_dir),
+                linear_range=(0, self.config.lid_length),
+            )
+
         with BuildPart() as lid:
-            extrude(offset(lid_key.sketch, -FIT), amount=-self.config.lid_length)
+            extrude(
+                offset(lid_key.sketch, -FIT),
+                amount=-self.config.lid_length )
             extrude(faces().sort_by(Axis.Z)[-1], amount=FIT)
             extrude(head.sketch, amount=-self.config.wall)
 
-            # matching magnet pocket in the lid tip, facing the box magnet
-            add(lid_magnet, mode=Mode.SUBTRACT)
+            # matching magnet pocket in the lid tail, facing the box magnet
+            tail = faces().filter_by(Plane.YZ).sort_by(Axis.X)[0]
+            self.cut_magnet(tail, -0.45)
 
             ####################
             # Polish the edges
@@ -146,14 +162,11 @@ class LocationBox(Partomatic):
             lid_edges = verticals + sides[0] + sides[-1] + ends[-1]
             fillet(lid_edges, self.fillet)
 
-        # Slide joint: the lid travels along the lid_plane normal, seated at 0
-        LinearJoint(
-            "slide", to_part=box.part,
-            axis=Axis(lid_plane.origin, lid_plane.z_dir),
-            linear_range=(0, self.config.lid_length),
-        )
-        RigidJoint("seat", to_part=lid.part, joint_location=Location(lid_plane.origin))
-        box.part.joints["slide"].connect_to(lid.part.joints["seat"], position=0)
+            RigidJoint("key", joint_location=Location(lid_plane.origin) )
+
+        # Connect the lid as a joint
+        box.part.joints["lock"].connect_to(
+            lid.part.joints["key"], position=0)
 
         # Set colors
         box.part.label = "box"
@@ -183,20 +196,13 @@ class LocationBox(Partomatic):
         return [self.config.face, self.config.depth, self.config.height]
 
     @compiled
-    def box(self):
-        return self.parts[0].part
-
-    @compiled
     def assembly(self):
         return Compound(
             label=self.config.name,
             children=[p.part for p in self.parts]
         )
 
-
 if __name__ == "__main__":
-    from ocp_vscode import show, Animation
-
     box = LocationBox()
     box.partomate()
 
@@ -205,7 +211,11 @@ if __name__ == "__main__":
 
     slide = box.config.lid_length + 10
     anim = Animation()
-    anim.add_track(f"/{box.config.name}/lid", "tx", times=[0, 1, 2], values=[0, slide, 0])
+    anim.add_track(
+        f"/{box.config.name}/lid",
+        "tx",
+        times=[0, 1, 2],
+        values=[0, slide, 0] )
     anim.animate(speed=0.9)
 
     log.info("processed location_box")

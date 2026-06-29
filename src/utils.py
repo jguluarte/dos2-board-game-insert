@@ -1,4 +1,4 @@
-from build123d import fillet, Color
+from build123d import Color
 
 from functools import wraps
 
@@ -25,10 +25,6 @@ def compiled(func):
         self.compile()
         return func(self, *args, **kwargs)
     return wrapped
-
-def max_fillet(objs, part):
-    return fillet(objs, radius=part.max_fillet(objs, max_iterations=20))
-
 
 def cshift(color, tint=0.3) -> Color:
     r, g, b, _ = tuple(color)
