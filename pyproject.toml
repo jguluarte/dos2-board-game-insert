@@ -23,3 +23,6 @@ reportArgumentType = "none"
 reportIncompatibleVariableOverride = "none"
 reportOptionalMemberAccess = "none"
 reportCallIssue = "none"
+
+[tool.ruff.lint]
+ignore = ["F403", "F405", "E731"]

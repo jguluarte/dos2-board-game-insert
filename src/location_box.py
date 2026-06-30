@@ -7,9 +7,9 @@ from build123d import *
 from partomatic import AutomatablePart, PartomaticConfig
 
 from parts import Partomatic, Card, CardBoxConfig
-from utils import cshift
+from utils import cshift, stack_thickness
 
-FIT = 0.1
+FIT = 0.2
 log = logging.getLogger(__name__)
 
 
@@ -26,15 +26,22 @@ class LocationBoxConfig(CardBoxConfig):
     magnet: Magnet = field(default_factory=Magnet)
 
     ##################################
-    # Stubbed with `tutorial` values
+    # Defaults are `tutorial`
     name: str = "tutorial"
     color: str = "green"
     card_count: int = 14
-    ##################################
 
     @property
     def lid_length(self):
         return self.face - self.wall
+
+    @property
+    def stack(self):
+        return stack_thickness(self.card_count)
+
+    @property
+    def depth(self):
+        return self.stack + (self.wall * 2)
 
 class LocationBox(Partomatic):
     config: LocationBoxConfig = LocationBoxConfig()
@@ -163,21 +170,17 @@ class LocationBox(Partomatic):
         lid.part.label = "lid"
         lid.part.color = cshift(box.part.color)
 
-        self.parts.append(
-            AutomatablePart(
-                box.part, f"{self.config.name} box.stl",
-                display_location=Location((0, 0, 0)),
-                stl_folder=self.config.stl_folder,
-            )
-        )
+        self.parts.append(AutomatablePart(
+            box.part, f"{self.config.name} box.stl",
+            display_location=Location((0, 0, 0)),
+            stl_folder=self.config.stl_folder,
+        ))
 
-        self.parts.append(
-            AutomatablePart(
-                lid.part, f"{self.config.name} lid.stl",
-                display_location=Location((0, 0, 0)),
-                stl_folder=self.config.stl_folder,
-            )
-        )
+        self.parts.append(AutomatablePart(
+            lid.part, f"{self.config.name} lid.stl",
+            display_location=Location((0, 0, 0)),
+            stl_folder=self.config.stl_folder,
+        ))
 
 if __name__ == "__main__":
     box = LocationBox()

@@ -1,7 +1,7 @@
 import build123d as bd
 import partomatic as partz
 
-from utils import stack_thickness, WALL, compiled
+from utils import WALL, compiled
 
 
 class Partomatic(partz.Partomatic):
@@ -22,15 +22,7 @@ class CardBoxConfig(partz.PartomaticConfig):
 
     # These need to be defined on subclasses
     card: Card
-    card_count: int
-
-    @property
-    def stack(self):
-        return stack_thickness(self.card_count)
-
-    @property
-    def depth(self):
-        return self.stack + (self.wall * 2)
+    name: str
 
     @property
     def face(self):
