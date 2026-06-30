@@ -36,12 +36,8 @@ class LocationBoxConfig(CardBoxConfig):
         return self.face - self.wall
 
     @property
-    def stack(self):
+    def inside_floor(self):
         return stack_thickness(self.card_count)
-
-    @property
-    def depth(self):
-        return self.stack + (self.wall * 2)
 
 class LocationBox(Partomatic):
     config: LocationBoxConfig = LocationBoxConfig()
@@ -100,11 +96,11 @@ class LocationBox(Partomatic):
 
             #  now we need to cut the small keyhole groove (the slide joint)
             with BuildSketch(lid_plane) as lid_key:
-                Rectangle(-self.lid_head, self.config.stack, align=centered)
+                Rectangle(-self.lid_head, self.config.inside_floor, align=centered)
                 with Locations((-self.lid_inset, 0)):
                     Rectangle(
                         -self.lid_inset,
-                        self.config.stack + self.config.wall,
+                        self.config.inside_floor + self.config.wall,
                         align=centered,
                     )
             extrude(amount=-self.config.lid_length, mode=Mode.SUBTRACT)

@@ -2,7 +2,7 @@ from itertools import accumulate
 import logging
 from dataclasses import field
 
-from ocp_vscode import show, show_all
+from ocp_vscode import show
 
 from build123d import *
 from partomatic import AutomatablePart
@@ -35,7 +35,7 @@ class SectionedBoxConfig(CardBoxConfig):
         return (len(self.card_stacks) - 1) * self.divider
 
     @property
-    def depth(self) -> float:
+    def inside_floor(self) -> float:
         return sum(self.sections) + self.section_walls
 
 
@@ -48,12 +48,19 @@ class SectionedBox(Partomatic):
         log.info(self.config.sections)
 
         with BuildPart() as box:
+            # base
             with BuildSketch(Plane.XY):
-                Rectangle(self.config.depth, self.config.card.width)
+                Rectangle(self.config.inside_floor, self.config.card.width)
             extrude(amount=self.config.wall)
 
+            # walls
+            with BuildSketch(Plane.XY):
+                walls = Rectangle(self.config.depth, self.config.face)
+                offset(walls, -self.config.wall, kind=Kind.INTERSECTION, mode=Mode.SUBTRACT)
+            extrude(amount=self.config.height)
+
             if self.is_sectioned():
-                base = faces().filter_by(Plane.XY).sort_by(Axis.Z)[-1]
+                base = faces().filter_by(Plane.XY).sort_by(Axis.Z)[1]
                 pos = base.position_at(0, 0.5)
 
                 with BuildSketch( Plane(base).shift_origin(pos) ):

@@ -29,5 +29,9 @@ class CardBoxConfig(partz.PartomaticConfig):
         return self.card.width + (self.wall * 2)
 
     @property
+    def depth(self):
+        return self.inside_floor + (self.wall * 2)
+
+    @property
     def height(self):
         return self.card.height + self.wall

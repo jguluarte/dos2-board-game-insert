@@ -20,6 +20,7 @@ package = false
 typeCheckingMode = "basic"
 reportReturnType = "none"
 reportArgumentType = "none"
+reportAttributeAccessIssue = "none"
 reportIncompatibleVariableOverride = "none"
 reportOptionalMemberAccess = "none"
 reportCallIssue = "none"
