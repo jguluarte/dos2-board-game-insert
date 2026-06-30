@@ -50,7 +50,7 @@ class LocationBox(Partomatic):
         return self.lid_head / 2
 
     @property
-    def coords(self):
+    def box_params(self):
         return [
             self.config.face,
             self.config.depth,
@@ -79,7 +79,7 @@ class LocationBox(Partomatic):
 
         with BuildPart() as box:
             # Make the box & hollow it out
-            Box(*self.coords, align=(Align.MIN, Align.MIN, Align.MIN))
+            Box(*self.box_params, align=(Align.MIN, Align.MIN, Align.MIN))
             offset(
                 amount=-self.config.wall,
                 openings=faces().sort_by(Axis.Z)[-1] )
