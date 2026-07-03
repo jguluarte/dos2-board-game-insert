@@ -1,0 +1,37 @@
+standard_boxes:
+  -
+    items:  # maybe break off "consumables" from the items?
+      color:       maroon
+      card_stacks: [46, 18, 18, 25, 21, 23, 23, 8, 15, 24, 15]
+
+  -
+    skills:
+      color:       purple
+      card_stacks: [11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 18, 16]
+
+    tutorial:  # need to subsection...might mix with tall decks
+      color:       gold
+      card_stacks: [40]
+
+  -
+    minions:  # need to subsection
+      color:       skyblue
+      card_stacks: [123]
+
+    dungeons:
+      color:       grey
+      card_stacks: [20, 16, 11, 21, 16, 7]
+
+  -
+    bosses:
+      color:       darkred
+      card_stacks: [26, 35, 78, 8, 11]
+
+  -
+    characters:
+      color:       seagreen
+      card_stacks: [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 12]
+
+    journals:  # consider more sections
+      color:       pink
+      card_stacks: [68, 3, 13]
