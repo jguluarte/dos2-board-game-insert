@@ -1,8 +1,8 @@
-# Location Box Groupings — cut sheet for assembly.scad
+# Location Box Groupings — cut sheet for acts.yaml
 
-Each act is a list of cards-per-box in `assembly.scad`, e.g.
-`act_1 = [56, 67, 61]`. Box thickness on the file axis =
-`opening(count) = count*0.6 + 1`, plus `2*$wall`.
+Each act is a list of cards-per-box in `src/acts.yaml`, e.g.
+`card_stacks: [56, 67, 61]`. Box thickness on the file axis =
+`stack_thickness(count) = count*0.6 + 1`, plus `2*wall` (wall 2.4).
 
 Measured: card 0.6 mm relaxed, clearance 1 mm, interior 395 x 303 x 175.
 
