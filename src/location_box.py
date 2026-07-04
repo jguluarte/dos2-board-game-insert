@@ -7,6 +7,7 @@ from build123d import *
 from partomatic import AutomatablePart, PartomaticConfig
 
 from parts import Partomatic, Card, CardBoxConfig
+from item_box import Sectioned, SectionedConfig
 from utils import cshift, stack_thickness
 
 
@@ -41,6 +42,13 @@ class LocationBoxConfig(CardBoxConfig):
     @property
     def inside_floor(self):
         return stack_thickness(self.card_count)
+
+class SectionedLocationBoxConfig(SectionedConfig, LocationBoxConfig):
+    ##################################
+    # Defaults are `act_1`
+    name: str = "act_1"
+    color: str = "firebrick"
+    card_stacks: list[int] = field(default_factory=lambda: [56, 67, 61])
 
 
 class KeyLid:
@@ -206,6 +214,49 @@ class LocationBox(KeyLid, Partomatic):
             display_location=Location((0, 0, 0)),
             stl_folder=self.config.stl_folder,
         ))
+
+
+class SectionedLocationBox(Sectioned, LocationBox):
+    config: SectionedLocationBoxConfig = SectionedLocationBoxConfig()
+
+    def compile(self):
+        self.parts.clear()
+
+        with BuildPart() as box:
+            self._build_shell()
+
+            lid_plane = self._lid_plane()
+            self._cut_lid_rail(lid_plane)
+
+            box_mag_face = faces().filter_by(Plane.YZ).sort_by(Axis.X)[1]
+            self.cut_magnet(box_mag_face, -0.4)
+
+            self._fillet_box()
+
+            if self.is_sectioned():
+                self._build_dividers()
+
+        with BuildPart() as lid:
+            self._build_lid(lid_plane)
+            RigidJoint("key", joint_location=Location(lid_plane.origin) )
+
+            lid_mag_face = faces().filter_by(Plane.YZ).sort_by(Axis.X)[0]
+            self.cut_magnet(lid_mag_face, -0.45)
+
+            self._fillet_lid()
+
+        self._pack_parts(box, lid)
+
+    def _divider_plane(self):
+        # location stacks run along the well's depth, not its width
+        return Plane(
+            origin=(self.config.face / 2, self.config.wall, self.config.wall),
+            x_dir=Axis.Y.direction )
+
+    @property
+    def divider_height(self):
+        # stop .5 short of the rail so the lid sweeps clear
+        return self.config.height - self.config.wall - .5
 
 
 if __name__ == "__main__":
