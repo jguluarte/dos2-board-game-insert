@@ -5,7 +5,7 @@ from dataclasses import field
 from ocp_vscode import show
 
 from build123d import *
-from partomatic import AutomatablePart
+from partomatic import AutomatablePart, PartomaticConfig
 
 from utils import stack_thickness
 from parts import Partomatic, Card, CardBoxConfig
@@ -18,14 +18,9 @@ class Standard(Card):
     width: int = 68
     height: int = 93
 
-class SectionedBoxConfig(CardBoxConfig):
+class SectionedConfig(PartomaticConfig):
     divider: float = 1.2
-    card: Standard = field(default_factory=Standard)
-
-    # these defaults are for the `bosses` box
-    name: str = "Bosses"
-    color: str = "darkred"
-    card_stacks: list[int] = field(default_factory=lambda: [26, 35, 78, 8, 11])
+    card_stacks: list[int]
 
     @property
     def sections(self) -> list[float]:
@@ -39,6 +34,14 @@ class SectionedBoxConfig(CardBoxConfig):
     def inside_floor(self) -> float:
         return sum(self.sections) + self.section_walls
 
+class SectionedBoxConfig(SectionedConfig, CardBoxConfig):
+    card: Standard = field(default_factory=Standard)
+
+    # these defaults are for the `bosses` box
+    name: str = "Bosses"
+    color: str = "darkred"
+    card_stacks: list[int] = field(default_factory=lambda: [26, 35, 78, 8, 11])
+
     @property
     def height(self) -> float:
         return super().height + self.wall
@@ -48,9 +51,7 @@ class SectionedBoxConfig(CardBoxConfig):
         return self.height * 0.6
 
 
-class SectionedBox(Partomatic):
-    config: SectionedBoxConfig = SectionedBoxConfig()
-
+class Sectioned:
     def __init__(self, *args, **kwargs):
         stack = kwargs.pop("card_stacks", None)
 
@@ -58,6 +59,40 @@ class SectionedBox(Partomatic):
 
         if stack is not None:
             self.config.card_stacks = stack
+
+    def _build_dividers(self):
+        plane = self._divider_plane()
+
+        with BuildSketch(plane) as s:
+            with Locations( *self._divider_positions() ):
+                self._make_divider_wall()
+
+        extrude(s.sketch, amount=self.divider_height)
+
+        along_wall = Axis(plane.origin, plane.y_dir)
+        tops = edges(Select.LAST).filter_by(along_wall).group_by(Axis.Z)[-1]
+        fillet(tops, radius=0.5)
+
+    def _divider_plane(self):
+        base = faces().filter_by(Plane.XY).sort_by(Axis.Z)[1]
+        return Plane(base).shift_origin( base.position_at(0, 0.5) )
+
+    def _divider_positions(self):
+        return map(lambda pos: (pos, 0), accumulate(
+            self.config.sections[1:-1],
+            lambda x, y: x + y + self.config.divider,
+            initial=self.config.sections[0]) )
+
+    def _make_divider_wall(self):
+        _align = (Align.MIN, Align.CENTER)
+        Rectangle(self.config.divider, self.config.card.width, align=_align)
+
+    def is_sectioned(self):
+        return len(self.config.sections) > 1
+
+
+class SectionedBox(Sectioned, Partomatic):
+    config: SectionedBoxConfig = SectionedBoxConfig()
 
     def compile(self):
         self.parts.clear()
@@ -90,30 +125,6 @@ class SectionedBox(Partomatic):
             offset(outline, -self.config.wall, **offset_kwargs)
         extrude(walls.sketch, amount=self.config.height)
 
-    def _build_dividers(self):
-        base = faces().filter_by(Plane.XY).sort_by(Axis.Z)[1]
-        pos = base.position_at(0, 0.5)
-
-        with BuildSketch( Plane(base).shift_origin(pos) ) as s:
-            with Locations( *self._divider_positions() ):
-                self._make_divider_wall()
-
-        # extra -.5 is to align juuuuuust underneath the box rim
-        extrude(s.sketch, amount=self.config.notch_floor - self.config.wall -.5)
-
-        tops = edges(Select.LAST).filter_by(Axis.Y).group_by(Axis.Z)[-1]
-        fillet(tops, radius=0.5)
-
-    def _divider_positions(self):
-        return map(lambda pos: (pos, 0), accumulate(
-            self.config.sections[1:-1],
-            lambda x, y: x + y + self.config.divider,
-            initial=self.config.sections[0]) )
-
-    def _make_divider_wall(self):
-        _align = (Align.MIN, Align.CENTER)
-        Rectangle(self.config.divider, self.config.card.width, align=_align)
-
     def _carve_notch(self):
         face = faces().filter_by(Plane.YZ).sort_by(Axis.X)[-1]
         pos = face.position_at(1, 0)
@@ -135,8 +146,10 @@ class SectionedBox(Partomatic):
         _inner_corners = edges().filter_by(Plane.XY).group_by(Axis.Z)[1]
         fillet( edges() - _inner_corners - _vert[1] - _vert[-2], radius=1 )
 
-    def is_sectioned(self):
-        return len(self.config.sections) > 1
+    @property
+    def divider_height(self):
+        # extra -.5 is to align juuuuuust underneath the box rim
+        return self.config.notch_floor - self.config.wall - .5
 
 
 if __name__ == "__main__":
