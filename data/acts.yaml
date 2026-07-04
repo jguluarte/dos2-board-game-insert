@@ -1,10 +1,5 @@
-# The location-card acts, in front-wall order (the last entry overflows to its
-# own spot). Each act renders in its color so the groups read in the assembly.
+# order & sequence here corresponds to render placement
 acts:
-  tutorial:
-    color:       gold
-    card_stacks: [14]
-
   act_1:
     color:       firebrick
     card_stacks: [56, 67, 61]
@@ -24,3 +19,7 @@ acts:
   nemesis:
     color:       maroon
     card_stacks: [32]
+
+  tutorial:
+    color:       gold
+    card_stacks: [14]

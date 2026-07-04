@@ -3,7 +3,7 @@ from build123d import Color
 from functools import wraps
 
 WALL = 2.4
-CARD_GAP = 1
+CARD_GAP = 1.5
 SLEEVED_THICKNESS = 0.6
 
 def stack_thickness(cards):

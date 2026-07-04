@@ -1,7 +1,12 @@
+import os
+from pathlib import Path
+
 import build123d as bd
 import partomatic as partz
 
 from utils import WALL, compiled
+
+REPO_ROOT = Path(os.environ["REPO_ROOT"])
 
 
 class Partomatic(partz.Partomatic):
@@ -18,7 +23,7 @@ class Card(partz.PartomaticConfig):
 
 class CardBoxConfig(partz.PartomaticConfig):
     wall: float = WALL
-    stl_folder: str = "build"
+    stl_folder: str = str(REPO_ROOT / "build")
 
     # These need to be defined on subclasses
     card: Card

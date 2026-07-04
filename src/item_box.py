@@ -39,6 +39,14 @@ class SectionedBoxConfig(CardBoxConfig):
     def inside_floor(self) -> float:
         return sum(self.sections) + self.section_walls
 
+    @property
+    def height(self) -> float:
+        return super().height + self.wall
+
+    @property
+    def notch_floor(self) -> float:
+        return self.height * 0.6
+
 
 class SectionedBox(Partomatic):
     config: SectionedBoxConfig = SectionedBoxConfig()
@@ -90,7 +98,8 @@ class SectionedBox(Partomatic):
             with Locations( *self._divider_positions() ):
                 self._make_divider_wall()
 
-        extrude(s.sketch, amount=self.config.height * 0.5)
+        # extra -.5 is to align juuuuuust underneath the box rim
+        extrude(s.sketch, amount=self.config.notch_floor - self.config.wall -.5)
 
         tops = edges(Select.LAST).filter_by(Axis.Y).group_by(Axis.Z)[-1]
         fillet(tops, radius=0.5)
@@ -110,7 +119,8 @@ class SectionedBox(Partomatic):
         pos = face.position_at(1, 0)
 
         with BuildSketch( Plane(face).shift_origin(pos) ) as s:
-            x, y = self.config.face, self.config.height * 0.33
+            x = self.config.face
+            y = self.config.height - self.config.notch_floor
 
             Polygon(
                 (0, 0),

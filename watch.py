@@ -20,6 +20,7 @@ if len(sys.argv) < 2:
 
 target = sys.argv[1]
 watch_dir = os.path.dirname(os.path.abspath(target))
+data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
 sys.path.insert(0, watch_dir)
 setup_logging()      # entry point owns logging config; models just getLogger() + log
@@ -84,7 +85,9 @@ if viewer is not None:
     time.sleep(VIEWER_SETTLE)
 try:
     run()                                             # initial render
-    for _changes in watch(watch_dir, watch_filter=PythonFilter()):
+    for _changes in watch(
+            watch_dir, data_dir,
+            watch_filter=PythonFilter(extra_extensions=('.yaml',))):
         run()
 except KeyboardInterrupt:
     pass

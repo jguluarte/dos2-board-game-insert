@@ -1,0 +1,40 @@
+standard_boxes:
+  -
+    skills:
+      color:       purple
+      card_stacks: [11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 18, 16]
+  -
+    characters:
+      color:       seagreen
+      card_stacks: [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 12]
+
+    journals:
+      color:       pink
+      card_stacks: [20, 20, 20, 8, 16]
+
+  -
+    minions: # MUST ACTUALLY SUBSECTION BEFORE PRINTING - these are fake
+      color:       skyblue
+      card_stacks: [21, 21, 21, 20, 20, 20]
+
+    dungeons:
+      color:       grey
+      card_stacks: [20, 16, 11, 21, 16, 7]
+
+  -
+    items:
+      color:       maroon
+      card_stacks: [46, 18, 18, 25, 21, 23, 23]
+
+    consumables:
+      color:       maroon
+      card_stacks: [8, 15, 24, 15]
+
+  -
+    tutorial:  # MUST VERIFY BEFORE PRINTING - 37 total is unverified
+      color:       gold
+      card_stacks: [7, 7, 7, 7, 9]
+
+    bosses:
+      color:       darkred
+      card_stacks: [26, 35, 78, 8, 11]

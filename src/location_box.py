@@ -9,8 +9,11 @@ from partomatic import AutomatablePart, PartomaticConfig
 from parts import Partomatic, Card, CardBoxConfig
 from utils import cshift, stack_thickness
 
-FIT = 0.2
+
 log = logging.getLogger(__name__)
+
+FIT = 0.2
+CENTERED = (Align.MAX, Align.CENTER)
 
 
 class Tarot(Card):
@@ -57,108 +60,31 @@ class LocationBox(Partomatic):
             self.config.height + self.lid_head
         ]
 
-    def cut_magnet(self, face, offset):
-        diameter, depth = map(lambda x: x + FIT, [
-            self.config.magnet.diameter,
-            self.config.magnet.thickness,
-        ])
-
-        top = face.edges().sort_by(Axis.Z)[-1].center()
-        magnet_center = top - Vector(0, 0, self.lid_inset)
-        plane = Plane(face).shift_origin(magnet_center).offset(offset)
-
-        with BuildSketch(plane) as magnet:
-            Rectangle(diameter, diameter)
-
-        extrude(magnet.sketch, amount=-depth, mode=Mode.SUBTRACT)
-
     def compile(self):
         self.parts.clear()
 
-        centered = (Align.MAX, Align.CENTER)
-
         with BuildPart() as box:
-            # Make the box & hollow it out
-            Box(*self.box_params, align=(Align.MIN, Align.MIN, Align.MIN))
-            offset(
-                amount=-self.config.wall,
-                openings=faces().sort_by(Axis.Z)[-1] )
+            self._build_shell()
 
-            # select the face to cut the lid out from, origin at its top center
-            face = faces().filter_by(Plane.YZ).sort_by(Axis.X)[-1]
-            lid_plane = Plane(face).shift_origin(face.position_at(1, 0.5))
+            lid_plane = self._lid_plane()
+            self._cut_lid_rail(lid_plane)
 
-            # remove the end of the key
-            with BuildSketch(lid_plane) as head:
-                Rectangle(-self.lid_head, self.config.depth, align=centered)
+            box_mag_face = faces().filter_by(Plane.YZ).sort_by(Axis.X)[1]
+            self.cut_magnet(box_mag_face, -0.4)
 
-            extrude(amount=-self.config.wall, mode=Mode.SUBTRACT)
-
-            #  now we need to cut the small keyhole groove (the slide joint)
-            with BuildSketch(lid_plane) as lid_key:
-                Rectangle(
-                    -self.lid_head, self.config.inside_floor, align=centered)
-                with Locations((-self.lid_inset, 0)):
-                    Rectangle(
-                        -self.lid_inset,
-                        self.config.inside_floor + self.config.wall,
-                        align=centered,
-                    )
-            extrude(amount=-self.config.lid_length, mode=Mode.SUBTRACT)
-
-            # magnet pocket cut into the back wall, a skin shy of the well
-            back = faces().filter_by(Plane.YZ).sort_by(Axis.X)[1]
-            self.cut_magnet(back, -0.2)
-
-            ####################
-            # Polish the edges
-            verticals = edges().filter_by(Axis.Z).group_by(Axis.X)
-
-            top_bot = edges().filter_by(Plane.XY).group_by(Axis.Z)
-            sides   = top_bot[-1].filter_by(Axis.X).group_by(Axis.Y)
-            ends    = top_bot[-1].filter_by(Axis.Y).group_by(Axis.X)
-
-            # outer four edges and the bottom
-            box_edges = verticals[0] + verticals[-1] + top_bot[0]
-
-            # the top outer 3 edges
-            box_edges += sides[0] + sides[-1] + ends[0]
-            fillet(box_edges, self.fillet)
-
-            LinearJoint(
-                "lock",
-                axis=Axis(lid_plane.origin, lid_plane.z_dir),
-                linear_range=(0, self.config.lid_length),
-            )
+            self._fillet_box()
 
         with BuildPart() as lid:
-            extrude(
-                offset(lid_key.sketch, -FIT),
-                amount=-self.config.lid_length )
-            extrude(faces().sort_by(Axis.Z)[-1], amount=FIT)
-            extrude(head.sketch, amount=-self.config.wall)
-
-            # matching magnet pocket in the lid tail, facing the box magnet
-            tail = faces().filter_by(Plane.YZ).sort_by(Axis.X)[0]
-            self.cut_magnet(tail, -0.45)
-
-            ####################
-            # Polish the edges
-            verticals = edges().filter_by(Axis.Z).group_by(Axis.X)[-1]
-
-            top   = edges().filter_by(Plane.XY).group_by(Axis.Z)[-1]
-            sides = top.filter_by(Axis.X).group_by(Axis.Y)
-            ends  = top.filter_by(Axis.Y).group_by(Axis.X)
-
-            # we want the lid's edge to sit flush with the box itself
-            lid_edges = verticals + sides[0] + sides[-1] + ends[-1]
-            fillet(lid_edges, self.fillet)
-
+            self._build_lid(lid_plane)
             RigidJoint("key", joint_location=Location(lid_plane.origin) )
 
+            lid_mag_face = faces().filter_by(Plane.YZ).sort_by(Axis.X)[0]
+            self.cut_magnet(lid_mag_face, -0.45)
+
+            self._fillet_lid()
+
         # Connect the lid as a joint
-        box.part.joints["lock"].connect_to(
-            lid.part.joints["key"], position=0)
+        box.part.joints["lock"].connect_to( lid.part.joints["key"], position=0 )
 
         # Set colors
         box.part.label = "box"
@@ -178,6 +104,102 @@ class LocationBox(Partomatic):
             display_location=Location((0, 0, 0)),
             stl_folder=self.config.stl_folder,
         ))
+
+    def _build_shell(self):
+        Box(*self.box_params, align=(Align.MIN, Align.MIN, Align.MIN))
+        offset(amount=-self.config.wall, openings=faces().sort_by(Axis.Z)[-1])
+
+    def _lid_plane(self):
+        face = faces().filter_by(Plane.YZ).sort_by(Axis.X)[-1]
+        return Plane(face).shift_origin(face.position_at(1, 0.5))
+
+    def _cut_lid_rail(self, plane):
+        # remove the end of the key
+        extrude(
+            self.head_profile(plane),
+            amount=-self.config.wall,
+            mode=Mode.SUBTRACT )
+
+        #  now we need to cut the small keyhole groove (the slide joint)
+        add(self.key(plane), mode=Mode.SUBTRACT)
+
+        LinearJoint(
+            "lock",
+            axis=Axis(plane.origin, plane.z_dir),
+            linear_range=(0, self.config.lid_length),
+        )
+
+    def key(self, plane):
+        profile = self.key_profile(plane)
+        return extrude(
+            profile, amount=-self.config.lid_length, mode=Mode.PRIVATE )
+
+    def key_profile(self, plane):
+        with BuildSketch(plane) as key:
+            Rectangle(
+                -self.lid_head, self.config.inside_floor, align=CENTERED)
+            with Locations((-self.lid_inset, 0)):
+                Rectangle(
+                    -self.lid_inset,
+                    self.config.inside_floor + self.config.wall,
+                    align=CENTERED,
+                )
+
+        return key.sketch
+
+    def _fillet_box(self):
+        verticals = edges().filter_by(Axis.Z).group_by(Axis.X)
+
+        top_bot = edges().filter_by(Plane.XY).group_by(Axis.Z)
+        sides   = top_bot[-1].filter_by(Axis.X).group_by(Axis.Y)
+        ends    = top_bot[-1].filter_by(Axis.Y).group_by(Axis.X)
+
+        # outer four edges and the bottom
+        box_edges = verticals[0] + verticals[-1] + top_bot[0]
+
+        # the top outer 3 edges
+        box_edges += sides[0] + sides[-1] + ends[0]
+        fillet(box_edges, self.fillet)
+
+    def _build_lid(self, plane):
+        add( offset( self.key(plane), -FIT,
+            kind=Kind.INTERSECTION, mode=Mode.PRIVATE) )
+        extrude(faces().sort_by(Axis.Z)[-1], amount=FIT)
+        extrude(self.head_profile(plane), amount=-self.config.wall)
+
+        bottom = faces().sort_by(Axis.Z)[0]
+        extrude(bottom, amount=-FIT, mode=Mode.SUBTRACT)
+
+    def _fillet_lid(self):
+        verticals = edges().filter_by(Axis.Z).group_by(Axis.X)[-1]
+
+        top   = edges().filter_by(Plane.XY).group_by(Axis.Z)[-1]
+        sides = top.filter_by(Axis.X).group_by(Axis.Y)
+        ends  = top.filter_by(Axis.Y).group_by(Axis.X)
+
+        # we want the lid's edge to sit flush with the box itself
+        fillet(verticals + sides[0] + sides[-1] + ends[-1], self.fillet)
+
+    def head_profile(self, plane):
+        with BuildSketch(plane) as head:
+            Rectangle(-self.lid_head, self.config.depth, align=CENTERED)
+
+        return head.sketch
+
+    def cut_magnet(self, face, offset):
+        diameter, depth = map(lambda x: x + FIT, [
+            self.config.magnet.diameter,
+            self.config.magnet.thickness,
+        ])
+
+        top = face.edges().sort_by(Axis.Z)[-1].center()
+        magnet_center = top - Vector(0, 0, (self.lid_head - FIT) / 2)
+        plane = Plane(face).shift_origin(magnet_center).offset(offset)
+
+        with BuildSketch(plane) as magnet:
+            Rectangle(diameter, diameter)
+
+        extrude(magnet.sketch, amount=-depth, mode=Mode.SUBTRACT)
 
 if __name__ == "__main__":
     box = LocationBox()

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from ocp_vscode import show
 from build123d import Align, Box, Compound, Pos, Rotation, Vector
 
+from parts import REPO_ROOT
 from utils import prime
 from location_box import LocationBox
 from item_box import SectionedBox, SectionedBoxConfig
@@ -16,7 +17,10 @@ log = logging.getLogger(__name__)
 
 GAP = 1.0
 BUFFER = 0.1
-LOC_ROW_COUNT = 11
+LOCATION_ROW_CAPACITY = 10
+
+def is_in_location_row(n):
+    return n < LOCATION_ROW_CAPACITY
 
 
 @dataclass
@@ -35,14 +39,14 @@ def load_locations() -> list[LocationBox]:
         LocationBox(name=act.name, color=act.color, card_count=stack)
         for act in load_acts() for stack in act.card_stacks]
 
-def load_acts(path="src/acts.yaml") -> list[Act]:
+def load_acts(path=REPO_ROOT / "data/acts.yaml") -> list[Act]:
     return load_yaml_as(Act, "acts", path)
 
 def load_yaml_as(cls, key, path):
     doc = yaml.safe_load(Path(path).read_text())
     return [cls(name=name, **body) for name, body in doc[key].items()]
 
-def load_boxes(path="src/boxes.yaml") -> list[RowBox]:
+def load_boxes(path=REPO_ROOT / "data/boxes.yaml") -> list[RowBox]:
     doc = yaml.safe_load(Path(path).read_text())
     return [
         RowBox(row, SectionedBox(name=name, **body))
@@ -65,6 +69,7 @@ class GameBox:
         self._location_box_offset = GAP
         self._standard_box_offset = {r.row: back for r in standard_boxes}
 
+        # locations must go first
         self.place_locations(locations)
         self.place_boxes(standard_boxes)
 
@@ -80,19 +85,20 @@ class GameBox:
         box = (yield).bounding_box().size
 
         # things that fit in the main row
-        while len(self.objects) < LOC_ROW_COUNT:
+        while is_in_location_row(len(self.objects)):
             corner = Vector(self._location_box_offset, GAP, BUFFER)
             self._location_box_offset += box.X + GAP
             box = (yield corner).bounding_box().size
 
-        # the last box goes elsewhere
-        yield self.standard_box_cursor(
-            row=max(self._standard_box_offset),
-            move_by=box.Y
-        )
+        # the boxes that don't fit consume standard-row slots
+        while True:
+            box = (yield self.standard_box_cursor(
+                row=max(self._standard_box_offset),
+                move_by=box.Y,
+            )).bounding_box().size
 
     def _loc_rotation(self, count):
-        return Rotation(0, 0, 0 if count >= LOC_ROW_COUNT else 90)
+        return Rotation(0, 0, 90 if is_in_location_row(count) else 0)
 
     def place_boxes(self, row_boxes):
         for r in row_boxes:
@@ -127,9 +133,14 @@ class GameBox:
 
 
 if __name__ == "__main__":
+
+    for b in (std_boxes := load_boxes()):
+        if b.box.config.name in ("items", "characters"):
+            b.box.partomate()
+
     gamebox = GameBox(
         locations=load_locations(),
-        standard_boxes=load_boxes(),
+        standard_boxes=std_boxes,
     )
 
     gamebox.render()

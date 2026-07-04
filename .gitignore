@@ -26,3 +26,4 @@ docs/*.html
 __pycache__/
 *.pyc
 .direnv/
+docs/
