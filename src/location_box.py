@@ -42,72 +42,14 @@ class LocationBoxConfig(CardBoxConfig):
     def inside_floor(self):
         return stack_thickness(self.card_count)
 
-class LocationBox(Partomatic):
-    config: LocationBoxConfig = LocationBoxConfig()
 
+class KeyLid:
     fillet: float = 2.0
     lid_head: float = 5
 
     @property
     def lid_inset(self):
         return self.lid_head / 2
-
-    @property
-    def box_params(self):
-        return [
-            self.config.face,
-            self.config.depth,
-            self.config.height + self.lid_head
-        ]
-
-    def compile(self):
-        self.parts.clear()
-
-        with BuildPart() as box:
-            self._build_shell()
-
-            lid_plane = self._lid_plane()
-            self._cut_lid_rail(lid_plane)
-
-            box_mag_face = faces().filter_by(Plane.YZ).sort_by(Axis.X)[1]
-            self.cut_magnet(box_mag_face, -0.4)
-
-            self._fillet_box()
-
-        with BuildPart() as lid:
-            self._build_lid(lid_plane)
-            RigidJoint("key", joint_location=Location(lid_plane.origin) )
-
-            lid_mag_face = faces().filter_by(Plane.YZ).sort_by(Axis.X)[0]
-            self.cut_magnet(lid_mag_face, -0.45)
-
-            self._fillet_lid()
-
-        # Connect the lid as a joint
-        box.part.joints["lock"].connect_to( lid.part.joints["key"], position=0 )
-
-        # Set colors
-        box.part.label = "box"
-        box.part.color = Color(self.config.color)
-
-        lid.part.label = "lid"
-        lid.part.color = cshift(box.part.color)
-
-        self.parts.append(AutomatablePart(
-            box.part, f"{self.config.name} box.stl",
-            display_location=Location((0, 0, 0)),
-            stl_folder=self.config.stl_folder,
-        ))
-
-        self.parts.append(AutomatablePart(
-            lid.part, f"{self.config.name} lid.stl",
-            display_location=Location((0, 0, 0)),
-            stl_folder=self.config.stl_folder,
-        ))
-
-    def _build_shell(self):
-        Box(*self.box_params, align=(Align.MIN, Align.MIN, Align.MIN))
-        offset(amount=-self.config.wall, openings=faces().sort_by(Axis.Z)[-1])
 
     def _lid_plane(self):
         face = faces().filter_by(Plane.YZ).sort_by(Axis.X)[-1]
@@ -146,20 +88,6 @@ class LocationBox(Partomatic):
                 )
 
         return key.sketch
-
-    def _fillet_box(self):
-        verticals = edges().filter_by(Axis.Z).group_by(Axis.X)
-
-        top_bot = edges().filter_by(Plane.XY).group_by(Axis.Z)
-        sides   = top_bot[-1].filter_by(Axis.X).group_by(Axis.Y)
-        ends    = top_bot[-1].filter_by(Axis.Y).group_by(Axis.X)
-
-        # outer four edges and the bottom
-        box_edges = verticals[0] + verticals[-1] + top_bot[0]
-
-        # the top outer 3 edges
-        box_edges += sides[0] + sides[-1] + ends[0]
-        fillet(box_edges, self.fillet)
 
     def _build_lid(self, plane):
         add( offset( self.key(plane), -FIT,
@@ -200,6 +128,85 @@ class LocationBox(Partomatic):
             Rectangle(diameter, diameter)
 
         extrude(magnet.sketch, amount=-depth, mode=Mode.SUBTRACT)
+
+
+class LocationBox(KeyLid, Partomatic):
+    config: LocationBoxConfig = LocationBoxConfig()
+
+    @property
+    def box_params(self):
+        return [
+            self.config.face,
+            self.config.depth,
+            self.config.height + self.lid_head
+        ]
+
+    def compile(self):
+        self.parts.clear()
+
+        with BuildPart() as box:
+            self._build_shell()
+
+            lid_plane = self._lid_plane()
+            self._cut_lid_rail(lid_plane)
+
+            box_mag_face = faces().filter_by(Plane.YZ).sort_by(Axis.X)[1]
+            self.cut_magnet(box_mag_face, -0.4)
+
+            self._fillet_box()
+
+        with BuildPart() as lid:
+            self._build_lid(lid_plane)
+            RigidJoint("key", joint_location=Location(lid_plane.origin) )
+
+            lid_mag_face = faces().filter_by(Plane.YZ).sort_by(Axis.X)[0]
+            self.cut_magnet(lid_mag_face, -0.45)
+
+            self._fillet_lid()
+
+        self._pack_parts(box, lid)
+
+    def _build_shell(self):
+        Box(*self.box_params, align=(Align.MIN, Align.MIN, Align.MIN))
+        offset(amount=-self.config.wall, openings=faces().sort_by(Axis.Z)[-1])
+
+    def _fillet_box(self):
+        verticals = edges().filter_by(Axis.Z).group_by(Axis.X)
+
+        top_bot = edges().filter_by(Plane.XY).group_by(Axis.Z)
+        sides   = top_bot[-1].filter_by(Axis.X).group_by(Axis.Y)
+        ends    = top_bot[-1].filter_by(Axis.Y).group_by(Axis.X)
+
+        # outer four edges and the bottom
+        box_edges = verticals[0] + verticals[-1] + top_bot[0]
+
+        # the top outer 3 edges
+        box_edges += sides[0] + sides[-1] + ends[0]
+        fillet(box_edges, self.fillet)
+
+    def _pack_parts(self, box, lid):
+        # Connect the lid as a joint
+        box.part.joints["lock"].connect_to( lid.part.joints["key"], position=0 )
+
+        # Set colors
+        box.part.label = "box"
+        box.part.color = Color(self.config.color)
+
+        lid.part.label = "lid"
+        lid.part.color = cshift(box.part.color)
+
+        self.parts.append(AutomatablePart(
+            box.part, f"{self.config.name} box.stl",
+            display_location=Location((0, 0, 0)),
+            stl_folder=self.config.stl_folder,
+        ))
+
+        self.parts.append(AutomatablePart(
+            lid.part, f"{self.config.name} lid.stl",
+            display_location=Location((0, 0, 0)),
+            stl_folder=self.config.stl_folder,
+        ))
+
 
 if __name__ == "__main__":
     box = LocationBox()
