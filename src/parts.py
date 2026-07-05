@@ -21,13 +21,47 @@ class Card(partz.PartomaticConfig):
     width: int
     height: int
 
-class CardBoxConfig(partz.PartomaticConfig):
-    wall: float = WALL
+
+class _BaseConfig(partz.PartomaticConfig):
+    color: str
+    name: str
+
+
+class CardboardConfig(_BaseConfig):
+    stl_folder: str = "NONE"
+
+    # These need to be defined on subclasses
+    width: float
+    height: float
+    depth: float
+
+class Cardboard(Partomatic):
+    config: CardboardConfig
+
+    @property
+    def stl_name(self):
+        return self.config.name
+
+    def compile(self):
+        self.parts.clear()
+
+        with bd.BuildPart() as board:
+            bd.Box(self.config.width, self.config.depth, self.config.height)
+
+        board.part.color = bd.Color(self.config.color)
+        self.parts.append(partz.AutomatablePart(
+            board.part, f"{self.stl_name}.stl",
+            display_location=bd.Location((0, 0, 0)),
+            stl_folder=self.config.stl_folder,
+        ))
+
+class CardBoxConfig(_BaseConfig):
     stl_folder: str = str(REPO_ROOT / "build")
+
+    wall: float = WALL
 
     # These need to be defined on subclasses
     card: Card
-    name: str
 
     @classmethod
     def footprint_width(cls):

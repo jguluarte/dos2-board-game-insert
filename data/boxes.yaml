@@ -1,11 +1,11 @@
 standard_boxes:
   -
     skills:
-      color:       purple
+      color:       mediumpurple  # printed in purple!
       card_stacks: [11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 18, 16]
   -
     characters:
-      color:       seagreen
+      color:       mediumpurple  # printed in purple!
       card_stacks: [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 12]
 
     journals:
@@ -31,10 +31,10 @@ standard_boxes:
       card_stacks: [8, 15, 24, 15]
 
   -
+    bosses:  # WAIT TO PRINT - boss storage may become its own design
+      color:       darkred
+      card_stacks: [26, 35, 78, 8, 11]
+
     tutorial:  # MUST VERIFY BEFORE PRINTING - 37 total is unverified
       color:       gold
       card_stacks: [7, 7, 7, 7, 9]
-
-    bosses:
-      color:       darkred
-      card_stacks: [26, 35, 78, 8, 11]
