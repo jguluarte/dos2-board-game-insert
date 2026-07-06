@@ -22,12 +22,12 @@ class Card(partz.PartomaticConfig):
     height: int
 
 
-class _BaseConfig(partz.PartomaticConfig):
+class BaseConfig(partz.PartomaticConfig):
     color: str
     name: str
 
 
-class CardboardConfig(_BaseConfig):
+class CardboardConfig(BaseConfig):
     stl_folder: str = "NONE"
 
     # These need to be defined on subclasses
@@ -55,11 +55,11 @@ class Cardboard(Partomatic):
             stl_folder=self.config.stl_folder,
         ))
 
-class CardBoxConfig(_BaseConfig):
+class BaseBoxConfig(BaseConfig):
+    wall: float = WALL
     stl_folder: str = str(REPO_ROOT / "build")
 
-    wall: float = WALL
-
+class CardBoxConfig(BaseBoxConfig):
     # These need to be defined on subclasses
     card: Card
 
@@ -67,6 +67,11 @@ class CardBoxConfig(_BaseConfig):
     def footprint_width(cls):
         card = cls.__dataclass_fields__["card"].default_factory
         return cls._card_width_formula(card, cls.wall)
+
+    @classmethod
+    def footprint_height(cls):
+        card = cls.__dataclass_fields__["card"].default_factory
+        return card.height + cls.wall
 
     @staticmethod
     def _card_width_formula(card, wall):

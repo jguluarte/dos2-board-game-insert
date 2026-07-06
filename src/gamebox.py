@@ -12,6 +12,7 @@ from location_box import LocationBox
 from item_box import SectionedBox, SectionedBoxConfig
 from cardboard import (
     BossDeck, BossTracker, HallOfEchoes, Minion, Player, RoundTracker)
+from status import StatusBox
 
 
 log = logging.getLogger(__name__)
@@ -19,6 +20,7 @@ log = logging.getLogger(__name__)
 GAP = 1.0
 BUFFER = 0.1
 LOCATION_ROW_CAPACITY = 10
+STD_ROW = SectionedBoxConfig.footprint_width() + GAP
 
 def is_in_location_row(n):
     return n < LOCATION_ROW_CAPACITY
@@ -58,7 +60,6 @@ def place_at(obj, point):
     return Pos(point - obj.bounding_box().min) * obj
 
 class GameBox:
-    # static constants
     width: int = 395
     depth: int = 303
     height: int = 175
@@ -66,145 +67,163 @@ class GameBox:
     # known properties of the game
     hall = HallOfEchoes()
     tracker = RoundTracker()
-    players = [Player(name=n) for n in ["one", "two", "three", "four"]]
+    status_tray = StatusBox()
     minions = [Minion(name=n) for n in "abcdef"]
-    boss_tracker = BossTracker()
+    players = [Player(name=n) for n in ["one", "two", "three", "four"]]
+
     boss_deck = BossDeck()
+    boss_tracker = BossTracker()
 
     @property
     def BACK(self) -> Vector:
         return Vector(self.width - GAP, self.depth - GAP, self.height - GAP)
 
     def __init__(self, locations, standard_boxes):
-        # catchall
-        self.objects = []
-
         self.locations = []
+        self.game_pieces = []
         self.standard_boxes = []
+        self._status_tray = None
 
         self._location_box_offset = GAP
-        self._standard_box_offset = {r.row: self.BACK.Y for r in standard_boxes}
+        self._standard_box_offset = {r.row: GAP for r in standard_boxes}
 
-        # Sequencing matters. We'll build on things as we go.
-        # locations are hard coded and very specific. if it changes, we know.
-        self.place_locations(locations[:LOCATION_ROW_CAPACITY])
-        self.place_boxes(standard_boxes)
-        self.place_tutorial(locations[-1])
-        self.place_nemesis(locations[-2])
-        self.place_boss_tracker(self.boss_tracker)
-        self.place_minions(self.minions)
-        self.place_boss_deck(self.boss_deck)
-        self.place_hall(self.hall)
-        self.stack_boards([self.tracker, *self.players])
+        self.place_standard_boxes(standard_boxes)
+        self.place_locations(locations)
+        self.place_status_tray()
+        self.place_game_pieces()
+
+    def place_standard_boxes(self, row_boxes):
+        # the rows march from the back corner
+        for r in row_boxes[:-1]:
+            part = r.box.assembly()
+            box = part.bounding_box().size
+
+            self.standard_boxes.append( place_at(
+                part, self.standard_box_cursor(row=r.row, move_by=box.X)
+            ))
+
+        # Last box has unique placement
+        box = row_boxes[-1].box.assembly()
+        self.standard_boxes.append( place_at(box, Vector(
+            self.status_tray.config.width + GAP * 2,
+            self.location_row_gap(), BUFFER) ))
+
+    def standard_box_cursor(self, row, move_by) -> Vector:
+        pos_box = self._standard_box_offset[row]
+        pos_row = self.BACK.Y - (row + 1) * STD_ROW + GAP
+
+        # move cursor rightward
+        self._standard_box_offset[row] = pos_box + move_by + GAP
+        return Vector(pos_box, pos_row, BUFFER)
+
+    def location_row_gap(self) -> float:
+        # the Y line where the gap behind the location row begins
+        return self.BACK.Y - STD_ROW * 3 + GAP
 
     def place_locations(self, locations):
         cursor = self.gen_location_corner()
 
-        for loc in locations:
+        for loc in locations[:LOCATION_ROW_CAPACITY]:
             box = Rotation(0, 0, 90) * loc.assembly()
+            self.locations.append( place_at(box, cursor.send(box)) )
+
+        # the last few locations have bespoke handling
+        for loc in locations[LOCATION_ROW_CAPACITY:]:
+            box = loc.assembly()
             self.locations.append( place_at(box, cursor.send(box)) )
 
     @prime
     def gen_location_corner(self):
         box = (yield).bounding_box().size
 
-        # things that fit in the main row
+        # the main row, growing along the front wall
         while is_in_location_row(len(self.locations)):
             corner = Vector(self._location_box_offset, GAP, BUFFER)
             self._location_box_offset += box.X + GAP
             box = (yield corner).bounding_box().size
 
-    def place_boxes(self, row_boxes):
-        for r in row_boxes:
-            part = Rotation(0, 0, 90) * r.box.assembly()
-            box = part.bounding_box().size
+        # put the last couple locations at the end of the box
+        edge = self.location_row_gap()
+        while True:
+            corner = Vector(self.BACK.X - box.X - 7, edge, BUFFER)
+            edge += box.Y + GAP
+            box = (yield corner).bounding_box().size
 
-            self.standard_boxes.append( place_at(
-                part, self.standard_box_cursor(row=r.row, move_by=box.Y)
-            ))
+    def place_status_tray(self):
+        tray = self.status_tray.assembly()
 
-    def standard_box_cursor(self, row, move_by) -> Vector:
-        std_row_width = SectionedBoxConfig.footprint_width() + GAP
+        self._status_tray = place_at(
+            tray, Vector(GAP, self.location_row_gap(), BUFFER) )
 
-        # (x, y) coords
-        pos_row = row * std_row_width + GAP
-        pos_box = self._standard_box_offset[row] - move_by
+    def place_game_pieces(self):
+        self.place_boss_components()
+        self.place_minions()
+        self.place_hall()
+        self.stack_boards()
 
-        # Move inward from the back of the box
-        self._standard_box_offset[row] = pos_box - GAP
+    def place_boss_components(self):
+        pieces = []
 
-        return Vector(pos_row, pos_box, BUFFER)
+        #######################
+        # boss tracker
+        tracker = Rotation(0, 0, 90) * self.boss_tracker.assembly()
+        pos_x = tracker.bounding_box().size.X
 
-    def place_tutorial(self, tutorial):
-        # aligned in front of its card box, so the tutorial pieces cluster
-        sibling = self.standard_boxes[-1].bounding_box()
-        box = tutorial.assembly()
-        depth = box.bounding_box().size.Y
+        pieces.append( place_at(
+            tracker, Vector(self.BACK.X - pos_x, GAP, BUFFER) ))
 
-        self.locations.append( place_at(
-            box, Vector(sibling.min.X, sibling.min.Y - GAP - depth, BUFFER) ))
+        #######################
+        # boss discard
+        discard = Rotation(90, 0, 90) * self.boss_deck.assembly()
+        size = discard.bounding_box().size
 
-    def place_nemesis(self, nemesis):
-        # tucked in front of the tutorial cluster
-        neighbor = self.locations[-1].bounding_box()
-        box = nemesis.assembly()
-        depth = box.bounding_box().size.Y
+        pieces.append( place_at(discard, Vector(
+            self.BACK.X - 4 - size.X, self.BACK.Y - size.Y, BUFFER) ))
 
-        self.locations.append( place_at(box, Vector(
-            neighbor.min.X, neighbor.min.Y - GAP - depth, BUFFER) ))
+        self.game_pieces.append( Compound(label="Boss", children=pieces) )
 
-    def place_boss_tracker(self, tracker):
-        # standing against the wall, running the length of the box
-        board = Rotation(0, 0, 90) * tracker.assembly()
-        size = board.bounding_box().size
+    def place_minions(self):
+        minions = []
+        edge = self.BACK.X - 7  # inset next to other things
 
-        self.objects.append( place_at(
-            board, Vector(self.BACK.X - size.X, GAP, BUFFER) ))
-
-    def place_minions(self, minions):
-        # standing behind the row, leaning on the boss tracker
-        boss = self.objects[0].bounding_box()
-        edge = self.locations[0].bounding_box().max.Y + GAP
-
-        for m in minions:
-            board = Rotation(0, 90, 0) * m.assembly()
+        for m in self.minions:
+            board = Rotation(90, 0, 90) * m.assembly()
             size = board.bounding_box().size
-            self.objects.append( place_at(
-                board, Vector(boss.min.X - size.X, edge, BUFFER) ))
-            edge += size.Y
+            edge -= size.X
+            minions.append( place_at(
+                board, Vector(edge, self.BACK.Y - size.Y, BUFFER) ))
 
-    def place_boss_deck(self, deck):
-        # standing in the sliver between the boxes and the envelope
-        board = Rotation(90, 0, 90) * deck.assembly()
-        size = board.bounding_box().size
-        sliver = max(b.bounding_box().max.X for b in self.standard_boxes)
+        self.game_pieces.append( Compound(label="minions", children=minions) )
 
-        self.objects.append( place_at(board, Vector(
-            sliver + GAP, self.BACK.Y - size.Y, BUFFER) ))
-
-    def place_hall(self, hall):
-        # the squishy envelope stands in the sliver, leaning on the boss tracker
-        book = Rotation(90, 0, 90) * hall.assembly()
+    def place_hall(self):
+        book = Rotation(0, 90, 0) * self.hall.assembly()
         size = book.bounding_box().size
-        boss = self.objects[0].bounding_box()
 
-        self.objects.append( place_at(book, Vector(
-            boss.min.X - size.X, self.BACK.Y - size.Y, BUFFER) ))
+        self.game_pieces.append( place_at(book, Vector(
+            GAP, self.BACK.Y - STD_ROW * 2 - size.Y, BUFFER) ))
 
-    def stack_boards(self, boards):
-        roof = self.standard_boxes[0].bounding_box().max.Z
+    def stack_boards(self):
+        roof = SectionedBoxConfig.footprint_height() + BUFFER
+        boards = []
 
-        for b in boards:
+        for b in [self.tracker, *self.players]:
             board = Rotation(90, 0, 0) * b.assembly()
             size = board.bounding_box().size
-            self.objects.append( place_at(
+            boards.append( place_at(
                 board, Vector(GAP, self.BACK.Y - size.Y, roof) ))
             roof += size.Z
 
+        self.game_pieces.append( Compound(
+            label="player & round", children=boards ))
+
+
     def render(self):
         show(
-            self.locations, self.standard_boxes, self.objects, self.wireframe(),
-            names=["locations", "standard boxes", "game pieces", "wireframe"],
+            self.locations, self.standard_boxes, self._status_tray,
+            self.game_pieces, self.wireframe(),
+            names=[
+                "locations", "standard boxes", "status tray",
+                "game pieces", "wireframe"],
         )
 
     def wireframe(self):

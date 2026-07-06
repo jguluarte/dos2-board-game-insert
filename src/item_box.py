@@ -43,6 +43,10 @@ class SectionedBoxConfig(CardBoxConfig):
     def height(self) -> float:
         return super().height + self.wall
 
+    @classmethod
+    def footprint_height(cls):
+        return super().footprint_height() + cls.wall
+
     @property
     def notch_floor(self) -> float:
         return self.height * 0.6
