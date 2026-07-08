@@ -70,7 +70,7 @@ class LocationBox(Partomatic):
             self._cut_lid_rail(lid_plane)
 
             box_mag_face = faces().filter_by(Plane.YZ).sort_by(Axis.X)[1]
-            self.cut_magnet(box_mag_face, -0.4)
+            self.cut_magnet(box_mag_face)
 
             self._fillet_box()
 
@@ -79,7 +79,7 @@ class LocationBox(Partomatic):
             RigidJoint("key", joint_location=Location(lid_plane.origin) )
 
             lid_mag_face = faces().filter_by(Plane.YZ).sort_by(Axis.X)[0]
-            self.cut_magnet(lid_mag_face, -0.45)
+            self.cut_magnet(lid_mag_face)
 
             self._fillet_lid()
 
@@ -147,6 +147,21 @@ class LocationBox(Partomatic):
 
         return key.sketch
 
+    def cut_magnet(self, face):
+        diameter, depth = map(lambda x: x + FIT, [
+            self.config.magnet.diameter,
+            self.config.magnet.thickness,
+        ])
+
+        top = face.edges().sort_by(Axis.Z)[-1].center()
+        magnet_center = top - Vector(0, 0, (self.lid_head - FIT) / 2)
+        plane = Plane(face).shift_origin(magnet_center)
+
+        with BuildSketch(plane) as magnet:
+            Circle( (diameter + FIT ) / 2)
+
+        extrude(magnet.sketch, amount=-depth, mode=Mode.SUBTRACT)
+
     def _fillet_box(self):
         verticals = edges().filter_by(Axis.Z).group_by(Axis.X)
 
@@ -185,21 +200,6 @@ class LocationBox(Partomatic):
             Rectangle(-self.lid_head, self.config.depth, align=CENTERED)
 
         return head.sketch
-
-    def cut_magnet(self, face, offset):
-        diameter, depth = map(lambda x: x + FIT, [
-            self.config.magnet.diameter,
-            self.config.magnet.thickness,
-        ])
-
-        top = face.edges().sort_by(Axis.Z)[-1].center()
-        magnet_center = top - Vector(0, 0, (self.lid_head - FIT) / 2)
-        plane = Plane(face).shift_origin(magnet_center).offset(offset)
-
-        with BuildSketch(plane) as magnet:
-            Rectangle(diameter, diameter)
-
-        extrude(magnet.sketch, amount=-depth, mode=Mode.SUBTRACT)
 
 if __name__ == "__main__":
     box = LocationBox()

@@ -1,14 +1,14 @@
 # order & sequence here corresponds to render placement
 acts:
-  act_1:
+  act_one:
     color:       firebrick
     card_stacks: [56, 67, 61]
 
-  act_2:
+  act_two:
     color:       steelblue
     card_stacks: [63, 51, 51]
 
-  act_3:
+  act_three:
     color:       seagreen
     card_stacks: [41, 46, 36]
 

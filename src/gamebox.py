@@ -1,6 +1,7 @@
 import yaml
 import logging
 from pathlib import Path
+from itertools import chain
 from dataclasses import dataclass
 
 from ocp_vscode import show
@@ -39,8 +40,9 @@ class RowBox:
 
 def load_locations() -> list[LocationBox]:
     return [
-        LocationBox(name=act.name, color=act.color, card_count=stack)
-        for act in load_acts() for stack in act.card_stacks]
+        LocationBox(name=f"{act.name}-{i}", color=act.color, card_count=stack)
+        for act in load_acts()
+        for i, stack in enumerate(act.card_stacks, start=1)]
 
 def load_acts(path=REPO_ROOT / "data/acts.yaml") -> list[Act]:
     return load_yaml_as(Act, "acts", path)
@@ -79,6 +81,9 @@ class GameBox:
         return Vector(self.width - GAP, self.depth - GAP, self.height - GAP)
 
     def __init__(self, locations, standard_boxes):
+        self._raw_boxes = [
+            i for i in chain(locations, [a.box for a in standard_boxes]) ]
+
         self.locations = []
         self.game_pieces = []
         self.standard_boxes = []
@@ -233,17 +238,19 @@ class GameBox:
 
         return Compound( label="wireframe", children=interior.edges() )
 
+    def partomate(self):
+        for i in (*self._raw_boxes, self.status_tray):
+            i.partomate()
+
 
 if __name__ == "__main__":
-
-    for b in (std_boxes := load_boxes()):
-        if b.box.config.name not in ("tutorial", "minions", "bosses"):
-            b.box.partomate()
-
     gamebox = GameBox(
         locations=load_locations(),
-        standard_boxes=std_boxes,
+        standard_boxes=load_boxes(),
     )
 
     gamebox.render()
     log.info("gamebox rendered!")
+
+    gamebox.partomate()
+    log.info("gamebox partomated bruhv")

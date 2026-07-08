@@ -1,7 +1,7 @@
 standard_boxes:
   -
-    bosses:  # WAIT TO PRINT - boss storage may become its own design
-      color:       darkred
+    bosses:
+      color:       darkred  # ✅ printing in red & black
       card_stacks: [26, 35, 78, 8, 11]
 
     minions: # MUST ACTUALLY SUBSECTION BEFORE PRINTING - these are fake
@@ -9,7 +9,7 @@ standard_boxes:
       card_stacks: [21, 21, 21, 20, 20, 20]
 
     journals:
-      color:       pink  # printing in blue
+      color:       purple  # ✅ printed purple & black
       card_stacks: [20, 20, 20, 8, 16]
 
     characters:
@@ -22,11 +22,11 @@ standard_boxes:
       card_stacks: [11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 18, 16]
 
     items:
-      color:       red  # ✅ printing in red
+      color:       red  # ✅ printed in red
       card_stacks: [46, 18, 18, 25, 21, 23, 23]
 
     consumables:
-      color:       red  # ✅ printing in red
+      color:       red  # ✅ printed in red
       card_stacks: [8, 15, 24, 15]
 
     tutorial:  # MUST VERIFY BEFORE PRINTING - 37 total is unverified
@@ -35,5 +35,5 @@ standard_boxes:
 
   -
     dungeons:
-      color:       grey
+      color:       black  # ✅ printed in black & blue
       card_stacks: [20, 16, 11, 21, 16, 7]
