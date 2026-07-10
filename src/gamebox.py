@@ -9,7 +9,7 @@ from build123d import Align, Box, Compound, Pos, Rotation, Vector
 
 from parts import REPO_ROOT
 from utils import prime
-from location_box import LocationBox
+from location_box import LocationBox, Tarot
 from item_box import SectionedBox, SectionedBoxConfig
 from cardboard import (
     BossDeck, BossTracker, HallOfEchoes, Minion, Player, RoundTracker)
@@ -18,9 +18,9 @@ from status import StatusBox
 
 log = logging.getLogger(__name__)
 
-GAP = 1.0
+GAP = 0
 BUFFER = 0.1
-LOCATION_ROW_CAPACITY = 10
+LOCATION_ROW_CAPACITY = 5
 STD_ROW = SectionedBoxConfig.footprint_width() + GAP
 
 def is_in_location_row(n):
@@ -38,11 +38,18 @@ class RowBox:
     row: int
     box: SectionedBox
 
-def load_locations() -> list[LocationBox]:
+# def load_locations() -> list[LocationBox]:
+#     return [
+#         LocationBox(name=f"{act.name}-{i}", color=act.color, card_count=stack)
+#         for act in load_acts()
+#         for i, stack in enumerate(act.card_stacks, start=1)]
+
+def load_locations():
     return [
-        LocationBox(name=f"{act.name}-{i}", color=act.color, card_count=stack)
-        for act in load_acts()
-        for i, stack in enumerate(act.card_stacks, start=1)]
+        SectionedBox(
+            card=Tarot(),
+            name=act.name, color=act.color, card_stacks=act.card_stacks)
+        for act in load_acts() ]
 
 def load_acts(path=REPO_ROOT / "data/acts.yaml") -> list[Act]:
     return load_yaml_as(Act, "acts", path)
@@ -129,12 +136,12 @@ class GameBox:
         cursor = self.gen_location_corner()
 
         for loc in locations[:LOCATION_ROW_CAPACITY]:
-            box = Rotation(0, 0, 90) * loc.assembly()
+            box = loc.assembly()
             self.locations.append( place_at(box, cursor.send(box)) )
 
-        # the last few locations have bespoke handling
+        # the last few locations rotate 90° and sit adjacent to the row
         for loc in locations[LOCATION_ROW_CAPACITY:]:
-            box = loc.assembly()
+            box = Rotation(0, 0, 90) * loc.assembly()
             self.locations.append( place_at(box, cursor.send(box)) )
 
     @prime

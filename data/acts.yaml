@@ -1,25 +1,25 @@
 # order & sequence here corresponds to render placement
 acts:
-  act_one:
-    color:       firebrick
+  loc_act_one:
+    color:       firebrick  # ✅ printed in purple & blue
     card_stacks: [56, 67, 61]
 
-  act_two:
-    color:       steelblue
+  loc_act_two:
+    color:       steelblue  # ✅ printed in red
     card_stacks: [63, 51, 51]
 
-  act_three:
+  loc_act_three:
     color:       seagreen
     card_stacks: [41, 46, 36]
 
-  haunted_keep:
+  loc_haunted_keep:
     color:       mediumpurple
     card_stacks: [45]
 
-  nemesis:
+  loc_nemesis:
     color:       maroon
     card_stacks: [32]
 
-  tutorial:
-    color:       gold
+  loc_tutorial:
+    color:       gold  # wait to print last
     card_stacks: [14]

@@ -1,5 +1,12 @@
 # D:OS Board Game Insert
 
+## Before touching code or design — read the memory files
+Read the memory FILES in `~/.claude/projects/-Users-jguluarte-cad-dos2-board-game/memory/`
+(`dos2-build123d`, `dos2-project-state`, `dos2-design-rules`,
+`dos2-print-log`), not just the auto-loaded `MEMORY.md` index. He lives in
+the ocp-vscode viewer — run models with `watch.py`; a headless compile is
+NOT proof a part looks right. Do only what was asked.
+
 Parametric 3D-printed insert for Divinity: Original Sin (base + 3
 expansions + KS content). Built in build123d (Python, on OCP/OpenCASCADE)
 with partomatic; viewed in ocp-vscode. (Ported from OpenSCAD — that port is

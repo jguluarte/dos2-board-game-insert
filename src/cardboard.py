@@ -26,7 +26,7 @@ class Player(Cardboard):
 class MinionConfig(CardboardConfig):
     name: str = "a"
 
-    width: float = 95
+    width: float = 94
     height: float = 150
 
     depth: float = 3.5

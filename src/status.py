@@ -37,6 +37,7 @@ class StatusBoxConfig(BaseBoxConfig):
 
     pockets: int = 5
     divider: float = 1.2
+    fillet: float = 1.0
 
     @property
     def card_sections(self):
@@ -72,11 +73,33 @@ class StatusBox(Partomatic):
             with Locations(( 0, self._grid_offset(4) + self.config.divider )):
                 self._add_minion_slots()
 
+            self._fillet_shell()
+
         box.part.color = Color("maroon")
         self.parts.append(AutomatablePart(
             box.part, "status.stl",
             stl_folder=self.config.stl_folder,
         ))
+
+    def _fillet_shell(self):
+        # one continuous pass over the outer shell; pocket/minion wells stay sharp
+        verticals = edges().filter_by(Axis.Z).group_by(Axis.X)
+        outer_vert = verticals[0] + verticals[-1]
+
+        horiz = edges().filter_by(Plane.XY)
+        bottom = horiz.group_by(Axis.Z)[0]                   # base perimeter
+
+        # full-width front lip of each rising step + the top-plane back edge
+        railings = horiz.filter_by(Axis.X).filter_by(
+            lambda e: e.length > self.config.width / 2)
+
+        # left/right side rail of every step ledge (and the top plane)
+        sides = horiz.filter_by(Axis.Y).group_by(Axis.X)
+        outer_sides = sides[0] + sides[-1]
+
+        fillet(
+            outer_vert + bottom + railings + outer_sides,
+            radius=self.config.fillet)
 
     def _grid_offset(self, level):
         _lvl = level - 1
